@@ -53,7 +53,7 @@ data:
       # Read backend uses health checks since any replica is acceptable.
       # Servers start enabled; all will pass a simple PING check.
       {{ range $i := until (add (int .Values.replica.replicas) 1 | int) }}
-      server valkey-{{ $i }} {{ include "valkey.fullname" $ }}-{{ $i }}.{{ include "valkey.headlessServiceName" $ }}.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.service.port }} check inter 5s fall 3 rise 1
+      server valkey-{{ $i }} {{ include "valkey.fullname" $ }}-{{ $i }}.{{ include "valkey.headlessServiceName" $ }}.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $.Values.service.port }} check inter 5s fall 3 rise 1 init-addr last,libc,none
       {{ end }}
 
   sentinel-watcher.sh: |
