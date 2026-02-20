@@ -561,7 +561,7 @@ haproxy:
     image:
       registry: docker.io
       repository: valkey/valkey
-      tag: "8.1-alpine"
+      tag: "{{ .Chart.AppVersion }}-alpine"
       pullPolicy: IfNotPresent
     resources: {}
       # limits:

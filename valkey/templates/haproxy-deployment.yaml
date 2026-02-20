@@ -49,9 +49,9 @@ spec:
         {{- if .Values.replica.sentinel.enabled }}
         - name: sentinel-watcher
           {{- if .Values.haproxy.sentinelWatcher.image.registry }}
-          image: "{{ .Values.haproxy.sentinelWatcher.image.registry }}/{{ .Values.haproxy.sentinelWatcher.image.repository }}:{{ .Values.haproxy.sentinelWatcher.image.tag }}"
+          image: "{{ .Values.haproxy.sentinelWatcher.image.registry }}/{{ .Values.haproxy.sentinelWatcher.image.repository }}:{{ tpl .Values.haproxy.sentinelWatcher.image.tag $ }}"
           {{- else }}
-          image: "{{ .Values.haproxy.sentinelWatcher.image.repository }}:{{ .Values.haproxy.sentinelWatcher.image.tag }}"
+          image: "{{ .Values.haproxy.sentinelWatcher.image.repository }}:{{ tpl .Values.haproxy.sentinelWatcher.image.tag $ }}"
           {{- end }}
           imagePullPolicy: {{ .Values.haproxy.sentinelWatcher.image.pullPolicy }}
           command:
