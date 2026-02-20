@@ -44,7 +44,8 @@ spec:
               mountPath: /var/run/haproxy
           resources:
             {{- toYaml .Values.haproxy.resources | nindent 12 }}
-
+          securityContext:
+            {{- toYaml .Values.haproxy.securityContext | nindent 12 }}
         {{- if .Values.replica.sentinel.enabled }}
         - name: sentinel-watcher
           {{- if .Values.haproxy.sentinelWatcher.image.registry }}
@@ -78,6 +79,8 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.haproxy.sentinelWatcher.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.haproxy.sentinelWatcher.securityContext | nindent 12 }}
         {{- end }}
 
       volumes:
