@@ -306,6 +306,9 @@ replica:
     # Number of replicas to reconfigure in parallel after failover
     parallelSyncs: 1
 
+    # Time in milliseconds to pause client writes during failover
+    clientPauseTimeout: 10000  # milliseconds
+    
     # Resource limits/requests for sentinel container
     resources: {}
       # Example:

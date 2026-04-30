@@ -42,7 +42,6 @@ spec:
         requests:
           storage: {{ .Values.replica.sentinel.persistence.size | quote }}
   {{- end }}
-
   template:
     metadata:
       labels:
@@ -182,6 +181,13 @@ spec:
           args: [ "/data/conf/valkey.conf" ]
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - /scripts/prestop.sh
           env:
             - name: POD_INDEX
               valueFrom:
@@ -216,6 +222,8 @@ spec:
           volumeMounts:
             - name: valkey-data
               mountPath: /data
+            - name: scripts
+              mountPath: /scripts
             {{- if .Values.tls.enabled }}
             - name: {{ include "valkey.fullname" . }}-tls
               mountPath: /tls
@@ -223,6 +231,16 @@ spec:
             {{- if .Values.auth.enabled }}
             - name: valkey-acl
               mountPath: /etc/valkey
+            {{- if .Values.auth.usersExistingSecret }}
+            - name: valkey-users-secret
+              mountPath: /valkey-users-secret
+              readOnly: true
+            {{- end }}
+            {{- if or (include "valkey.hasInlinePasswords" . | eq "true") .Values.auth.aclConfig }}
+            - name: valkey-auth-secret
+              mountPath: /valkey-auth-secret
+              readOnly: true
+            {{- end }}
             {{- end }}
             {{- range $secret := .Values.extraValkeySecrets }}
             - name: {{ $secret.name }}-valkey

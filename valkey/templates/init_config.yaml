@@ -5,6 +5,78 @@ metadata:
   labels:
     {{- include "valkey.labels" . | nindent 4 }}
 data:
+  prestop.sh: |-
+    # preStop hook to detect master role and request failover via Sentinel
+    # This runs before the pod is terminated and uses the existing TLS/auth mounts.
+    #!/bin/sh
+    set -eu
+
+    log() {
+      echo "$(date +'%Y-%m-%dT%H:%M:%SZ') $*"
+    }
+
+    log "Starting Valkey preStop hook..."
+
+    # Build TLS arguments only when TLS is enabled in the chart values.
+    TLS_ARGS=""
+    if [ "{{ .Values.tls.enabled }}" = "true" ]; then
+      TLS_ARGS="--tls --cacert /tls/{{ .Values.tls.caPublicKey }}"
+    fi
+
+    # Function to fetch the password for a given Valkey username.
+    # It checks mounted secrets in the order configured by the chart.
+    get_password_for_user() {
+      username="$1"
+      password_key="${2:-$username}"
+
+      if [ -f "/valkey-users-secret/$password_key" ]; then
+        cat "/valkey-users-secret/$password_key"
+        return 0
+      fi
+      if [ -f "/valkey-auth-secret/${username}-password" ]; then
+        cat "/valkey-auth-secret/${username}-password"
+        return 0
+      fi
+      return 1
+    }
+
+    # Determine the user used for ROLE queries and failover.
+    # Prefer values from replica.sentinel if configured, otherwise fall back to default.
+    ROLE_USERNAME="${VALKEY_MONITOR_USERNAME:-{{ .Values.replica.sentinel.monitorUser | default "default" }}}"
+    SENTINEL_USERNAME="${VALKEY_SENTINEL_USERNAME:-{{ .Values.replica.sentinel.interSentinelUser | default "default" }}}"
+    # Prepare auth args for the ROLE and Sentinel commands.
+    ROLE_AUTH_ARGS=""
+    SENTINEL_AUTH_ARGS=""
+    if [ "{{ .Values.auth.enabled }}" = "true" ]; then
+      if ROLE_PASSWORD=$(get_password_for_user "$ROLE_USERNAME"); then
+        ROLE_AUTH_ARGS="--user $ROLE_USERNAME -a $ROLE_PASSWORD"
+      else
+        log "WARN: auth enabled but password for role user '$ROLE_USERNAME' was not found."
+      fi
+      if SENTINEL_PASSWORD=$(get_password_for_user "$SENTINEL_USERNAME"); then
+        SENTINEL_AUTH_ARGS="--user $SENTINEL_USERNAME -a $SENTINEL_PASSWORD"
+      else
+        log "WARN: auth enabled but password for sentinel user '$SENTINEL_USERNAME' was not found."
+      fi
+    fi
+
+    ROLE_OUTPUT=$(sh -c "valkey-cli ${TLS_ARGS} ${ROLE_AUTH_ARGS} -p {{ .Values.service.port }} ROLE" 2>/dev/null || true)
+    ROLE=$(printf '%s' "$ROLE_OUTPUT" | head -n 1 | tr -d '"')
+    log "Detected role: $ROLE"
+
+    # If this node is currently master, request controlled failover from Sentinel.
+    if [ "$ROLE" = "master" ]; then
+      log "Pausing client writes for {{ .Values.replica.sentinel.clientPauseTimeout }} milliseconds..."
+      sh -c "valkey-cli ${TLS_ARGS} ${ROLE_AUTH_ARGS} -p {{ .Values.service.port }} CLIENT PAUSE {{ .Values.replica.sentinel.clientPauseTimeout }} WRITE" >/dev/null 2>&1 || log "WARN: failed to pause client writes."
+      
+      log "Master node detected; requesting failover from Sentinel..."
+      sh -c "valkey-cli ${TLS_ARGS} ${SENTINEL_AUTH_ARGS} -p {{ .Values.replica.sentinel.port }} SENTINEL failover {{ .Values.replica.sentinel.masterSet }}" >/dev/null 2>&1 || log "WARN: failed to invoke SENTINEL failover. Cluster may rely on automatic failover."
+      
+      log "Failover request completed."
+    else
+      log "Not master; skipping failover request."
+    fi
+
   init.sh: |-
     #!/bin/sh
     set -eu
