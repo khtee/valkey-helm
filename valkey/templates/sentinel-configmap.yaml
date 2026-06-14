@@ -23,7 +23,7 @@ data:
     MASTER_HOST="{{ include "valkey.fullname" . }}-0.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
     MASTER_PORT="{{ .Values.service.port }}"
 
-    SENTINEL_CONF="/data/sentinel.conf"
+    SENTINEL_CONF="/sentinel-data/sentinel.conf"
 
     # Logging function (outputs to stderr to avoid polluting stdout command substitutions)
     log() {
@@ -78,7 +78,7 @@ data:
     # Announce IP for discovery in Kubernetes
     sentinel resolve-hostnames yes
     sentinel announce-hostnames yes
-    sentinel announce-ip ${POD_NAME}.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
+    sentinel announce-ip ${POD_NAME}.{{ include "valkey.sentinel.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
     sentinel announce-port ${SENTINEL_PORT}
 
     # Monitor the master

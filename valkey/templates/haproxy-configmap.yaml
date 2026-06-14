@@ -86,6 +86,7 @@ data:
     VALKEY_PORT="{{ .Values.service.port }}"
     HAPROXY_SOCKET="/var/run/haproxy/admin.sock"
     BACKEND="valkey_backend_master"
+    TOTAL_SENTINELS="{{ .Values.replica.sentinel.replicas }}"
     TOTAL_SERVERS="{{ add (int .Values.replica.replicas) 1 }}"
 
     # Logging to stderr prevents polluting stdout
@@ -148,8 +149,8 @@ data:
 
       # 1. Ask Sentinels who the master is
       i=0
-      while [ "${i}" -lt "${TOTAL_SERVERS}" ]; do
-        S_HOST="{{ include "valkey.fullname" . }}-${i}.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
+      while [ "${i}" -lt "${TOTAL_SENTINELS}" ]; do
+        S_HOST="{{ include "valkey.fullname" . }}-sentinel-${i}.{{ include "valkey.sentinel.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
         
         RESP=$(sentinel_cmd "${S_HOST}" sentinel get-master-addr-by-name "${MASTER_SET}" 2>/dev/null) || {
           i=$((i + 1))

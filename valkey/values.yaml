@@ -275,6 +275,9 @@ replica:
     # Enable Sentinel for high availability and automatic failover
     enabled: false
 
+    # Number of sentinel instances (needs at least 3 replicas for the quorum)
+    replicas: 3
+
     # Username for Sentinel to authenticate to the Valkey master/replicas.
     # If not defined or left empty, the script will fallback to using replicationUser.
     # WARNING: If the 'default' user is disabled in auth.aclUsers, this MUST be set to a
