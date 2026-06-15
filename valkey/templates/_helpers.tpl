@@ -219,3 +219,11 @@ Sentinel headless service name
 {{ include "valkey.fullname" . }}-sentinel-headless
 {{- end -}}
 
+{{/*
+Validate haproxy is used in replica mode
+*/}}
+{{- define "valkey.validateHaproxyRequirements" -}}
+{{- if and (not .Values.replica.enabled) .Values.haproxy.enabled }}
+  {{- fail "Haproxy is only relevant in replica mode with clients incompatible with Sentinel." }}
+{{- end }}
+{{- end -}}
