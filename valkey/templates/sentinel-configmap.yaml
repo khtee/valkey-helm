@@ -19,16 +19,45 @@ data:
     FAILOVER_TIMEOUT="{{ .Values.replica.sentinel.failoverTimeout }}"
     PARALLEL_SYNCS="{{ .Values.replica.sentinel.parallelSyncs }}"
 
-    # Master is always pod-0 of the valkey statefulset initially
-    MASTER_HOST="{{ include "valkey.fullname" . }}-0.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
-    MASTER_PORT="{{ .Values.service.port }}"
-
-    SENTINEL_CONF="/sentinel-data/sentinel.conf"
-
     # Logging function (outputs to stderr to avoid polluting stdout command substitutions)
     log() {
       echo "$(date) $1" >&2
     }
+
+    has_master() {
+      for i in $(seq 0 "{{ (int .Values.replica.replicas) }}"); do
+        valkey-cli -h {{ include "valkey.fullname" . }}-$i.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }} INFO replication 2>/dev/null \
+          | grep -q "^role:master" && return 0
+        done
+      return 1
+    }
+
+    # Wait until a master is UP
+    until has_master; do
+      log "Master not ready"
+      sleep 5
+    done
+    
+    # Discover who is the current master
+    MASTER_HOST=""
+    for i in $(seq 0 "{{ (int .Values.replica.replicas) }}"); do
+        HOST="{{ include "valkey.fullname" . }}-$i.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
+    
+        ROLE=$(redis-cli -h "$HOST" INFO replication 2>/dev/null \
+          | awk -F: '/^role:/ {print $2}' \
+          | tr -d '\r')
+    
+        if [ "$ROLE" = "master" ]; then
+            MASTER_HOST="$HOST"
+            break
+        fi
+    
+        i=$((i + 1))
+    done
+    MASTER_PORT="{{ .Values.service.port }}"
+    log "Found existing master $MASTER_HOST"
+
+    SENTINEL_CONF="/sentinel-data/sentinel.conf"
 
     log "Initializing Sentinel configuration..."
 
