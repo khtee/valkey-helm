@@ -86,3 +86,19 @@ tests:
           content:
             app.kubernetes.io/instance: RELEASE-NAME
             app.kubernetes.io/name: valkey
+  - it: should not set the pod-0 selector when sentinel is enabled
+    set:
+      replica.enabled: true
+      replica.persistence.size: "5Gi"
+      replica.sentinel.enabled: true
+      replica.sentinel.replicas: 3
+    template: templates/service.yaml
+    asserts:
+      - isKind:
+          of: Service
+      - notExists:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: primary
+      - notMatchRegex:
+         path: spec.selector["statefulset.kubernetes.io/pod-name"]
+         pattern: '-0$'

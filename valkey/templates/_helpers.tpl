@@ -199,6 +199,9 @@ Validate sentinel configuration
   {{- if lt (int .Values.replica.sentinel.replicas) 3 }}
     {{- fail "Sentinel mode requires at least 3 pods for a stable quorum." }}
   {{- end }}
+  {{- if gt (int .Values.replica.sentinel.quorum) (int .Values.replica.sentinel.replicas) }}
+    {{- fail (printf "Sentinel quorum (%d) cannot be greater than sentinels count (%d)." (int .Values.replica.sentinel.quorum) (int .Values.replica.sentinel.replicas)) }}
+  {{- end }}
   {{- if and .Values.auth.enabled (not (hasKey .Values.auth.aclUsers .Values.replica.replicationUser)) }}
     {{- fail (printf "Sentinel with auth requires replication user '%s' to be defined in auth.aclUsers" .Values.replica.replicationUser) }}
   {{- end }}

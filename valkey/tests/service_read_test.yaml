@@ -114,3 +114,13 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+  - it: should not create read service when sentinel is enabled
+    set:
+      replica.enabled: true
+      replica.persistence.size: "5Gi"
+      replica.sentinel.enabled: true
+      replica.sentinel.replicas: 3
+    template: templates/service-read.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
