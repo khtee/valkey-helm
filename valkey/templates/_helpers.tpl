@@ -226,7 +226,7 @@ Sentinel headless service name
 Validate haproxy is used in replica mode
 */}}
 {{- define "valkey.validateHaproxyRequirements" -}}
-{{- if and (not .Values.replica.enabled) .Values.haproxy.enabled }}
-  {{- fail "Haproxy is only relevant in replica mode with clients incompatible with Sentinel." }}
+{{- if and .Values.haproxy.enabled (or (not .Values.replica.enabled) (not .Values.replica.sentinel.enabled)) }}
+  {{- fail "Haproxy requires replica mode and sentinel to handle incompatible sentinel clients usescases." }}
 {{- end }}
 {{- end -}}

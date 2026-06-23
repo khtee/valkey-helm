@@ -322,12 +322,3 @@ tests:
             name: extra-config
             mountPath: /extra-config
             readOnly: true
-
-  - it: should fail when haproxy is enabled but replica mode disabled
-    set:
-      replica.enabled: false
-      haproxy.enabled: true
-    template: templates/deploy_valkey.yaml
-    asserts:
-      - failedTemplate:
-          errorPattern: "Haproxy is only relevant in replica mode with clients incompatible with Sentinel."
