@@ -153,13 +153,10 @@
               "type": "object",
               "properties": {
                 "type": {
-                  "type": "string"
+                    "type": "string"
                 },
-                "port": {
-                  "type": "integer"
-                },
-                "annotations": {
-                  "type": "object"
+                "ports": {
+                    "type": "array"
                 }
               }
             },

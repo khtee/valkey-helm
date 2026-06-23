@@ -19,19 +19,15 @@ data:
       timeout server {{ .Values.haproxy.config.timeout.server }}
       retries 3
 
-    frontend valkey_frontend_write
-      bind *:{{ .Values.haproxy.service.port | default 6379 }}
+    {{- range .Values.haproxy.service.ports }}
+    frontend valkey_frontend_{{ .name }}
+      bind *:{{ .port }}
       mode tcp
       option tcplog
-      default_backend valkey_backend_master
+      default_backend valkey_backend_{{ .name }}
+    {{- end }}
 
-    frontend valkey_frontend_read
-      bind *:{{ .Values.haproxy.service.readPort | default 6380 }}
-      mode tcp
-      option tcplog
-      default_backend valkey_backend_read
-
-    backend valkey_backend_master
+    backend valkey_backend_{{ (index .Values.haproxy.service.ports 0).name }}
       mode tcp
       # no-check: sentinel-watcher solely controls which server is active via
       # the runtime socket (set server addr + enable/disable server).
@@ -41,7 +37,7 @@ data:
       server valkey-{{ $i }} 127.0.0.1:6379 check-send-proxy disabled
       {{- end }}
 
-    backend valkey_backend_read
+    backend valkey_backend_{{ (index .Values.haproxy.service.ports 1).name }}
       mode tcp
       option tcp-check
 
@@ -72,7 +68,7 @@ data:
     # Sentinel watcher: polls Sentinel for master changes and updates HAProxy
     # via the runtime socket.
     #
-    # KEY DESIGN: All valkey_backend_master servers are configured as
+    # KEY DESIGN: All valkey_backend_{{ (index .Values.haproxy.service.ports 0).name }} servers are configured as
     # `no-check disabled` in haproxy.cfg. This watcher is the SOLE controller
     # of which server is active. It resolves the master hostname to a Pod IP
     # and uses `set server addr` so HAProxy connects directly to the IP,
@@ -85,7 +81,8 @@ data:
     POLL_INTERVAL="{{ .Values.haproxy.config.checkInterval | default 2 }}"
     VALKEY_PORT="{{ .Values.service.port }}"
     HAPROXY_SOCKET="/var/run/haproxy/admin.sock"
-    BACKEND="valkey_backend_master"
+    BACKEND="valkey_backend_{{ (index .Values.haproxy.service.ports 0).name }}"
+    TOTAL_SENTINELS="{{ .Values.replica.sentinel.replicas }}"
     TOTAL_SERVERS="{{ add (int .Values.replica.replicas) 1 }}"
 
     # Logging to stderr prevents polluting stdout
@@ -148,8 +145,8 @@ data:
 
       # 1. Ask Sentinels who the master is
       i=0
-      while [ "${i}" -lt "${TOTAL_SERVERS}" ]; do
-        S_HOST="{{ include "valkey.fullname" . }}-${i}.{{ include "valkey.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
+      while [ "${i}" -lt "${TOTAL_SENTINELS}" ]; do
+        S_HOST="{{ include "valkey.fullname" . }}-sentinel-${i}.{{ include "valkey.sentinel.headlessServiceName" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
         
         RESP=$(sentinel_cmd "${S_HOST}" sentinel get-master-addr-by-name "${MASTER_SET}" 2>/dev/null) || {
           i=$((i + 1))

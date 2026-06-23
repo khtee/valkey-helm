@@ -275,6 +275,9 @@ replica:
     # Enable Sentinel for high availability and automatic failover
     enabled: false
 
+    # Number of sentinel instances (needs at least 3 replicas for the quorum)
+    replicas: 3
+
     # Username for Sentinel to authenticate to the Valkey master/replicas.
     # If not defined or left empty, the script will fallback to using replicationUser.
     # WARNING: If the 'default' user is disabled in auth.aclUsers, this MUST be set to a
@@ -557,10 +560,27 @@ haproxy:
     pullPolicy: IfNotPresent
   replicas: 3
   service:
+    # Service type (ClusterIP, NodePort, LoadBalancer)
     type: ClusterIP
-    port: 6379      # Port for write operations
-    readPort: 6380  # Port for read operations
-    annotations: {}
+    ports:
+        # Port name for read-write opérations
+      - name: valkey-write
+        # Port for read-write opérations
+        port: 6379
+        # NodePort value (if service.type is NodePort)
+        nodePort: 0
+        # Port name for read only opérations
+      - name: valkey-read
+        # Port for read only opérations
+        port: 6380
+        # NodePort value (if service.type is NodePort)
+        nodePort: 0
+    # Optional annotations for the sentinel service
+    annotations: {}  
+    # ClusterIP value
+    clusterIP: ""
+    # Application protocol
+    appProtocol: ""
   resources: {}
     # limits:
     #   cpu: 100m

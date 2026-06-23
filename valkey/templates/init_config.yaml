@@ -11,6 +11,7 @@ data:
 
     # Default config paths
     VALKEY_CONFIG=${VALKEY_CONFIG_PATH:-/data/conf/valkey.conf}
+    BOOTSTRAP_FILE="/data/conf/.bootstrap"
 
     LOGFILE="/data/init.log"
     DATA_DIR="/data/conf"
@@ -175,7 +176,10 @@ data:
     # 1. Determine Initial Topology or Restored State
     REPLICA_TARGET=""
     if [ "${SENTINEL_MODE:-false}" = "true" ]; then
-      if [ -n "$SAVED_REPLICA_LINE" ]; then
+      if [ -f "$BOOTSTRAP_FILE" ] && [ -z "$SAVED_REPLICA_LINE" ] ; then
+        log "Sentinel mode: Restoring master state from previous run"
+        REPLICA_TARGET=""
+      elif [ -n "$SAVED_REPLICA_LINE" ]; then
         # CRITICAL: Restore topology written by Sentinel (CONFIG REWRITE)
         log "Sentinel Mode: Restoring replication state from previous run: $SAVED_REPLICA_LINE"
         REPLICA_TARGET="$SAVED_REPLICA_LINE"
@@ -269,3 +273,4 @@ data:
       log "Appending files in /extravalkeyconfigs/"
       cat /extravalkeyconfigs/* >>"$VALKEY_CONFIG"
     fi
+    touch $BOOTSTRAP_FILE

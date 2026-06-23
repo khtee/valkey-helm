@@ -196,8 +196,11 @@ Validate sentinel configuration
   {{- if not .Values.replica.enabled }}
     {{- fail "Sentinel mode requires replication to be enabled. Please set replica.enabled=true along with sentinel.enabled=true" }}
   {{- end }}
-  {{- if lt (add (int .Values.replica.replicas) 1) 3 }}
-    {{- fail "Sentinel mode requires at least 3 Valkey pods (replicas: 2) for a stable quorum." }}
+  {{- if lt (int .Values.replica.sentinel.replicas) 3 }}
+    {{- fail "Sentinel mode requires at least 3 pods for a stable quorum." }}
+  {{- end }}
+  {{- if gt (int .Values.replica.sentinel.quorum) (int .Values.replica.sentinel.replicas) }}
+    {{- fail (printf "Sentinel quorum (%d) cannot be greater than sentinels count (%d)." (int .Values.replica.sentinel.quorum) (int .Values.replica.sentinel.replicas)) }}
   {{- end }}
   {{- if and .Values.auth.enabled (not (hasKey .Values.auth.aclUsers .Values.replica.replicationUser)) }}
     {{- fail (printf "Sentinel with auth requires replication user '%s' to be defined in auth.aclUsers" .Values.replica.replicationUser) }}
@@ -219,3 +222,11 @@ Sentinel headless service name
 {{ include "valkey.fullname" . }}-sentinel-headless
 {{- end -}}
 
+{{/*
+Validate haproxy is used in replica mode
+*/}}
+{{- define "valkey.validateHaproxyRequirements" -}}
+{{- if and .Values.haproxy.enabled (or (not .Values.replica.enabled) (not .Values.replica.sentinel.enabled)) }}
+  {{- fail "Haproxy requires replica mode and sentinel to handle incompatible sentinel clients usescases." }}
+{{- end }}
+{{- end -}}

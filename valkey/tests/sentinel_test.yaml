@@ -32,6 +32,29 @@ tests:
       - hasDocuments:
           count: 0
 
+  - it: should fail when sentinel replicas count is too low for a stable quorum
+    set:
+      replica.enabled: true
+      replica.persistence.size: "5Gi"
+      replica.sentinel.enabled: true
+      replica.sentinel.replicas: 2
+    template: templates/sentinel-statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "Sentinel mode requires at least 3 pods for a stable quorum.*"
+
+  - it: should fail when quorum is greater than sentinels count
+    set:
+      replica.enabled: true
+      replica.persistence.size: "5Gi"
+      replica.sentinel.enabled: true
+      replica.sentinel.replicas: 3
+      replica.sentinel.quorum: 4
+    template: templates/sentinel-statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "Sentinel quorum (4) cannot be greater than sentinels count (3)."
+
   - it: should create sentinel StatefulSet when both replica and sentinel are enabled
     set:
       replica.enabled: true
